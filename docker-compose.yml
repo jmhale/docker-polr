@@ -1,0 +1,88 @@
+version: '3.5'
+networks:
+  frontend:
+    external: true
+services:
+    polr:
+        image: ajanvier/polr
+        container_name: polr
+        networks:
+          - frontend
+        environment:
+            - DB_HOST=mariadb
+            - DB_DATABASE=${DB_DATABASE}
+            - DB_USERNAME=${DB_USERNAME}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - ADMIN_USERNAME=${ADMIN_USERNAME}
+            - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+            - ADMIN_EMAIL=${ADMIN_EMAIL}
+            - APP_ADDRESS=${APP_ADDRESS}
+            - APP_NAME=${APP_NAME}
+            - APP_PROTOCOL=${APP_PROTOCOL}
+            - SETTING_PUBLIC_INTERFACE=false
+            - SETTING_SHORTEN_PERMISSION=true
+            - SETTING_INDEX_REDIRECT=https://twitch.tv/halestormin
+            - SETTING_REDIRECT_404=true
+            - SETTING_PSEUDORANDOM_ENDING=true
+            - SETTING_ADV_ANALYTICS=true
+        depends_on:
+            - mariadb
+        labels:
+          - "traefik.enable=true"
+          - "traefik.backend=polr"
+          - "traefik.frontend.rule=Host:${APP_ADDRESS}"
+          - "traefik.port=80"
+          - "traefik.protocol=http"
+          - "traefik.docker.network=frontend"
+          - "traefik.frontend.headers.STSSeconds=315360000"
+          - "traefik.frontend.headers.browserXSSFilter=true"
+          - "traefik.frontend.headers.contentTypeNosniff=true"
+          - "traefik.frontend.headers.forceSTSHeader=true"
+          - "traefik.frontend.headers.STSIncludeSubdomains=true"
+          - "traefik.frontend.headers.STSPreload=true"
+          - "traefik.frontend.headers.customFrameOptionsValue: allow-from https:${APP_ADDRESS}"
+    mariadb:
+        image: mariadb
+        container_name: mariadb
+        networks:
+          - frontend
+        restart: always
+        environment:
+          - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+          - MYSQL_DATABASE=${DB_DATABASE}
+          - MYSQL_USER=${DB_USERNAME}
+          - MYSQL_PASSWORD=${DB_PASSWORD}
+        volumes:
+          - /root/docker/mariadb:/var/lib/mysql
+
+    traefik:
+      hostname: traefik
+      image: traefik:v1.7.16
+      restart: always
+      domainname: ${APP_ADDRESS}
+      networks:
+        - frontend
+      ports:
+        - "80:80"
+        - "443:443"
+        - "8080:8080"
+      environment:
+        - CF_API_EMAIL=${CF_API_EMAIL}
+        - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.backend=traefik"
+        - "traefik.frontend.rule=Host:traefik.${APP_ADDRESS}"  
+        - "traefik.port=8080"
+        - "traefik.docker.network=frontend"
+        - "traefik.frontend.headers.STSSeconds=315360000"
+        - "traefik.frontend.headers.browserXSSFilter=true"
+        - "traefik.frontend.headers.contentTypeNosniff=true"
+        - "traefik.frontend.headers.forceSTSHeader=true"
+        - "traefik.frontend.headers.STSIncludeSubdomains=true"
+        - "traefik.frontend.headers.STSPreload=true"
+        - "traefik.frontend.headers.customFrameOptionsValue: allow-from https:${APP_ADDRESS}"
+        - "traefik.frontend.headers.frameDeny=true"
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /root/docker/traefik:/etc/traefik
